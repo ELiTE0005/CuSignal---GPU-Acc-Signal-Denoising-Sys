@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  cusignal-dev:
+    build: .
+    volumes:
+      - .:/app/cusignal_project
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
