@@ -1,0 +1,1 @@
+building a high-efficiency signal processing pipeline for Radar and Sonar systems, focusing on clutter/noise suppression, Doppler filtering, and target detection. The system will leverage Genetic Algorithms (GA) to dynamically optimize processing parameters and curate/modify datasets for better downstream modeling.
