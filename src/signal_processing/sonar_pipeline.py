@@ -1,6 +1,5 @@
 import cupy as cp
-import numpy as np
-from scipy.signal.windows import chebwin
+import cusignal
 
 class SonarPipeline:
     def __init__(self, 
@@ -16,9 +15,8 @@ class SonarPipeline:
         self.lambda_c = self.c / self.fc
         self.d = self.lambda_c / 2.0
         
-        # Create Chebyshev window on CPU and transfer to GPU
-        window_cpu = chebwin(self.num_elements, at=60)  # 60dB attenuation
-        self.window_spatial = cp.asarray(window_cpu)
+        # GPU-native Chebyshev window via cusignal (60dB attenuation)
+        self.window_spatial = cusignal.windows.chebwin(self.num_elements, at=60)
         
     def process_spatial_fft(self, array_data):
         """

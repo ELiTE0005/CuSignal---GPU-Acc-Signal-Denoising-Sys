@@ -1,5 +1,6 @@
 import cupy as cp
 import cupyx.scipy.ndimage as ndimage
+import cusignal
 import math
 
 class RadarPipeline:
@@ -14,9 +15,9 @@ class RadarPipeline:
         self.fs = fs
         self.slope = slope
         
-        # Hann windows for FFTs
-        self.window_fast = cp.hanning(self.num_samples)
-        self.window_slow = cp.hanning(self.num_chirps)
+        # GPU-native Hann windows via cusignal
+        self.window_fast = cusignal.windows.hann(self.num_samples)
+        self.window_slow = cusignal.windows.hann(self.num_chirps)
         
     def process_range_doppler(self, adc_data):
         """

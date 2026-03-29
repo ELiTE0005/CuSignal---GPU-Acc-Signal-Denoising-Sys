@@ -6,6 +6,7 @@ from numba import cuda
 cuda.current_context()
 
 import cupy as cp
+import cusignal
 import matplotlib.pyplot as plt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
