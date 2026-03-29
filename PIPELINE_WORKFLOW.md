@@ -39,10 +39,10 @@
 │  ├─ Velocity: 15.0 m/s (approaching)├─ Velocity: -10.0 m/s (receding)       │
 │  └─ RCS:      10.0 dBsm (strong)    └─ RCS:      5.0 dBsm (weak)            │
 │                                                                             │
-│   RCS (Radar Cross Section) = how reflective the object is                │
-│   Velocity positive = moving toward radar (blue shift)                   
-│   Velocity negative = moving away from radar (red shift)                  │
-│                                                                              │
+│   RCS (Radar Cross Section) = how reflective the object is                  │
+│   Velocity positive = moving toward radar (blue shift)                      │
+│   Velocity negative = moving away from radar (red shift)                    │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -75,7 +75,7 @@
 │  ├─ v = target velocity                                                     │
 │  └─ λ_c = wavelength at fc (3.9 mm for 77 GHz)                              │
 │                                                                             │
-│   Output: Complex ADC Array (128 × 100)                                  │
+│   Output: Complex ADC Array (128 × 100)                                     │
 │            ├─ Dims: 128 chirps (slow-time) × 100 samples (fast-time)        │
 │            ├─ Data Type: complex64 (CuPy GPU array)                         │
 │            └─ Contains raw IF signals with embedded range & velocity info   │
@@ -91,36 +91,36 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ STEP 3: 2D RANGE-DOPPLER PROCESSING                                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
+│                                                                             │
 │  Input: Raw ADC Data (128 × 100)                                            │
-│                                                                              │
-│  ┌─── FAST-TIME FFT (Range Processing) ───┐                               │
+│                                                                             │
+│  ┌─── FAST-TIME FFT (Range Processing) ───  ┐                                 │
 │  │                                          │                               │
 │  │  For each of 128 chirps:                 │                               │
-│  │  ├─ Apply Hann Window (to reduce        │                               │
+│  │  ├─ Apply Hann Window (to reduce         │                                │
 │  │  │  spectral leakage)                    │                               │
 │  │  └─ FFT along axis=1 (100 samples)       │                               │
 │  │                                          │                               │
 │  │  Result: (128 × 100) complex array       │                               │
 │  │                                          │                               │
-│  │   Higher FFT bin # = farther distance  │                               │
-│  │   FFT magnitude = signal strength      │                               │
+│  │   Higher FFT bin # = farther distance    │                                 │
+│  │   FFT magnitude = signal strength        │                                 │
 │  │                                          │                               │
 │  └──────────────────────────────────────────┘                               │
-│                    ↓                                                         │
-│  ┌─── SLOW-TIME FFT (Doppler Processing) ──┐                              │
+│                    ↓                                                        │
+│  ┌─── SLOW-TIME FFT (Doppler Processing) ── ┐                                │
 │  │                                          │                               │
 │  │  For each of 100 range bins:             │                               │
-│  │  ├─ Apply Hann Window across 128 chirps │                               │
+│  │  ├─ Apply Hann Window across 128 chirps  │                                │
 │  │  ├─ FFT along axis=0 (128 chirps)        │                               │
 │  │  └─ fftshift to center DC (zero velocity)│                               │
 │  │                                          │                               │
 │  │  Result: (128 × 100) complex array       │                               │
 │  │           (Range-Doppler 2D map)         │                               │
 │  │                                          │                               │
-│  │   Center = zero doppler (stationary)   │                               │
-│  │   Upper half = approaching targets     │                               │
-│  │   Lower half = receding targets        │                               │
+│  │   Center = zero doppler (stationary)     │                                 │
+│  │   Upper half = approaching targets       │                                 │
+│  │   Lower half = receding targets          │                                 │
 │  │                                          │                               │
 │  └──────────────────────────────────────────┘                               │
 │                    ↓                                                         │
