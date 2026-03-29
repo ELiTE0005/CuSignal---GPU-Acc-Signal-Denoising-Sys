@@ -658,4 +658,85 @@ docker exec cusignal-cusignal-dev-1 python /app/cusignal_project/scripts/run_son
 
 ---
 
-Generated: March 29, 2026 | CuSignal Project | GPU-Accelerated Signal Processing
+
+---------------------------------------------------------------------
+RADAR_OUTPUT :
+
+Left panel is the Range-Dopler Map
+(raw signal output after FFT processing)
+
+Color Mapping:
+├─ DARK BLUE (< -50 dB):  Deep noise floor
+├─ CYAN (0-20 dB):         Noise + weak signals
+├─ YELLOW (20-40 dB):      Noise floor background
+├─ ORANGE (40-60 dB):      Signal present
+└─ DARK RED (> 60 dB):     Strong target signals 
+
+Vertical alignment: Target signals are vertically elongated because the signal bleeds across several doppler bins due to windowing effects
+Power levels: Target 1 shows more power (24 million) than Target 2 (8 million) → stronger signal due to higher RCS (10 dBsm vs 5 dBsm)
+Noise uniformity: The noise floor is relatively flat across the map → good radar design, no spatial blind spots
+
+
+Right Panel: CA-CFAR Detections 
+
+Color Mapping:
+├─ BLACK (0):  No detection (below threshold)
+└─ WHITE (1):  Detection (passed threshold) 
+
+Pure black background = Successfully rejected as noise
+5 WHITE regions = 28 total detected cells, clustered into 5 groups
+
+Cluster 0: Single white dot at (97, 30) - weak, probably noise
+Cluster 1: Bright white rectangle (0-1, 56-59) - TARGET 1 
+Cluster 2: Bright white rectangle (99, 56-59) - multipath reflection
+Cluster 3: Horizontal white line (31-36, 73-75) - TARGET 2 
+Cluster 4: Single white dot (95, 126) - extreme doppler, likely spurious
+
+
+MAIN * how CA-CFAR works so well:
+
+Removes scattered noise speckles across the map
+Adapts threshold locally → high detection confidence on targets
+Clean separation: targets pop out, noise disappears
+False Alarm Rate = 1e-5 = We expect only ~1 false detection per 100,000 cells!
+
+
+---------------------------------------------------------------------
+
+
+SOLAR_OUTPUT 
+
+X-axis (128 bins):  Spatial Frequency / Angle
+├─ 0-64:  Beams from left side (-90°)
+├─ 64:    Broadside (perpendicular, 0°)
+└─ 64-128: Beams from right side (+90°)
+
+Y-axis (100k samples): Time / Range
+├─ 0:      Near-field (close range detection)
+├─ 50k:    Mid-range
+└─ 100k:   Far-field (distant targets)
+
+COLOUR Mapping 
+
+DARK TEAL/PURPLE (< -50 dB):  Deep noise floor
+TEAL (0-20 dB):               Thermal noise
+DARK GREEN (20-40 dB):        Background
+BRIGHT YELLOW (> 40 dB):      Acoustic target signals 
+
+
+Two Bright Yellow Horizontal Lines:
+
+Upper Line (~y=40,000 range bins):
+
+Position: Around x=60 angle bin (center-right)
+Interpretation: Target 1 @ 60m range, angle=0.2 rad (11.5° right)
+Brightness: Very bright yellow (highest power on map)
+SNR: 50 (strong signal, excellent detection)
+Shape: Horizontal line because sonar shows range along x-axis for a fixed angle
+Lower Line (~y=75,000 range bins):
+
+Position: Around x=105 angle bin (far right)
+Interpretation: Target 2 @ 110m range, angle=-0.4 rad (-22.9° left)
+Brightness: Dimmer yellow than Target 1
+SNR: 30 (weaker signal, still detectable)
+Shape: Also horizontal, farther from broadside
