@@ -94,7 +94,7 @@
 │                                                                             │
 │  Input: Raw ADC Data (128 × 100)                                            │
 │                                                                             │
-│  ┌─── FAST-TIME FFT (Range Processing) ───  ┐                                 │
+│  ┌─── FAST-TIME FFT (Range Processing) ───  ┐                               │
 │  │                                          │                               │
 │  │  For each of 128 chirps:                 │                               │
 │  │  ├─ Apply Hann Window (to reduce         │                               │
