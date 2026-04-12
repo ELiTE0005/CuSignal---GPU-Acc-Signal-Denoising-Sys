@@ -94,52 +94,52 @@
 │                                                                             │
 │  Input: Raw ADC Data (128 × 100)                                            │
 │                                                                             │
-│  ┌─── FAST-TIME FFT (Range Processing) ───  ┐                                 │
+│  ┌─── FAST-TIME FFT (Range Processing) ───  ┐                               │
 │  │                                          │                               │
 │  │  For each of 128 chirps:                 │                               │
-│  │  ├─ Apply Hann Window (to reduce         │                                │
+│  │  ├─ Apply Hann Window (to reduce         │                               │
 │  │  │  spectral leakage)                    │                               │
 │  │  └─ FFT along axis=1 (100 samples)       │                               │
 │  │                                          │                               │
 │  │  Result: (128 × 100) complex array       │                               │
 │  │                                          │                               │
-│  │   Higher FFT bin # = farther distance    │                                 │
-│  │   FFT magnitude = signal strength        │                                 │
+│  │   Higher FFT bin # = farther distance    │                               │
+│  │   FFT magnitude = signal strength        │                               │
 │  │                                          │                               │
 │  └──────────────────────────────────────────┘                               │
 │                    ↓                                                        │
-│  ┌─── SLOW-TIME FFT (Doppler Processing) ── ┐                                │
+│  ┌─── SLOW-TIME FFT (Doppler Processing) ── ┐                               │
 │  │                                          │                               │
 │  │  For each of 100 range bins:             │                               │
-│  │  ├─ Apply Hann Window across 128 chirps  │                                │
+│  │  ├─ Apply Hann Window across 128 chirps  │                               │
 │  │  ├─ FFT along axis=0 (128 chirps)        │                               │
 │  │  └─ fftshift to center DC (zero velocity)│                               │
 │  │                                          │                               │
 │  │  Result: (128 × 100) complex array       │                               │
 │  │           (Range-Doppler 2D map)         │                               │
 │  │                                          │                               │
-│  │   Center = zero doppler (stationary)     │                                 │
-│  │   Upper half = approaching targets       │                                 │
-│  │   Lower half = receding targets          │                                 │
+│  │   Center = zero doppler (stationary)     │                               │
+│  │   Upper half = approaching targets       │                               │
+│  │   Lower half = receding targets          │                               │
 │  │                                          │                               │
 │  └──────────────────────────────────────────┘                               │
-│                    ↓                                                         │
-│   Output: Range-Doppler Matrix Power Map                                 │
-│            ├─ X-axis (100): Range bins (0-50m equivalent)                 │
-│            ├─ Y-axis (128): Doppler bins (velocity = ±~60 m/s)           │
-│            ├─ Pixel Value: Power = |complex|²                             │
-│            └─ Visualization: Heatmap (jet colormap)                       │
-│                                                                              │
+│                    ↓                                                        │
+│   Output: Range-Doppler Matrix Power Map                                    │
+│            ├─ X-axis (100): Range bins (0-50m equivalent)                   │
+│            ├─ Y-axis (128): Doppler bins (velocity = ±~60 m/s)              │
+│            ├─ Pixel Value: Power = |complex|²                               │
+│            └─ Visualization: Heatmap (jet colormap)                         │
+│                                                                             │
 │  Visual Output:                                                             │
-│  ┌─────────────────────────────────────┐                                  │
-│  │ █████████░░░░░░░░░░░░░░░░░░░░░░░░   │ ← High Power                    │
-│  │ ░░███████████████░░░░░░░░░░░░░░░░░  │   (Target regions)              │
-│  │ ░░░░░░░░░█████████████░░░░░░░░░░░░  │                                 │
-│  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │ ← Low Power                    │
-│  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │   (Noise)                      │
-│  │  Range (bins) →             Doppler ↓ │                                 │
-│  └─────────────────────────────────────┘                                  │
-│                                                                              │
+│  ┌─────────────────────────────────────┐                                    │
+│  │ █████████░░░░░░░░░░░░░░░░░░░░░░░░   │ ← High Power                       │
+│  │ ░░███████████████░░░░░░░░░░░░░░░░░  │   (Target regions)                 │
+│  │ ░░░░░░░░░█████████████░░░░░░░░░░░░  │                                    │
+│  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │ ← Low Power                        │
+│  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │   (Noise)                          │
+│  │  Range (bins) →             Doppler ↓ │                                  │
+│  └─────────────────────────────────────┘                                    │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -151,38 +151,38 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ STEP 4: CA-CFAR (Cell-Averaging Constant False Alarm Rate)                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
+│                                                                             │
 │  Input: Range-Doppler Power Map (128 × 100)                                 │
-│                                                                              │
-│  ┌─── ALGORITHM CONCEPT ──────────────────────────────────────────┐        │
+│                                                                             │
+│  ┌─── ALGORITHM CONCEPT ──────────────────────────────────────────┐         │ 
 │  │                                                                 │        │
-│  │  Traditional Threshold: power > fixed_value                    │        │
-│  │  Problem: Fails when noise floor varies spatially              │        │
+│  │  Traditional Threshold: power > fixed_value                    │         │
+│  │  Problem: Fails when noise floor varies spatially              │         │
 │  │                                                                 │        │
-│  │  CA-CFAR Solution: Adaptive thresholding                       │        │
-│  │  ─────────────────────────────────────────                     │        │
+│  │  CA-CFAR Solution: Adaptive thresholding                       │         │
+│  │  ─────────────────────────────────────────                     │         │
 │  │                                                                 │        │
-│  │      Test Cell (CUT)                                           │        │
-│  │            ↓                                                   │        │
-│  │  ┌─────────────────────────────┐                              │        │
-│  │  │ Training Cells (8×4)        │  ← Used to estimate noise    │        │
-│  │  │  ┌────────────────────┐     │                              │        │
-│  │  │  │ Guard Cells (4×2)  │     │  ← Prevent self-pollution    │        │
-│  │  │  │    ┌────────┐      │     │                              │        │
-│  │  │  │    │ CUT    │      │     │  ← Cell Under Test           │        │
-│  │  │  │    └────────┘      │     │     (test this cell)         │        │
-│  │  │  └────────────────────┘     │                              │        │
-│  │  └─────────────────────────────┘                              │        │
+│  │      Test Cell (CUT)                                           │         │
+│  │            ↓                                                   │         │
+│  │  ┌─────────────────────────────┐                              │          │
+│  │  │ Training Cells (8×4)        │  ← Used to estimate noise    │          │
+│  │  │  ┌────────────────────┐     │                              │          │
+│  │  │  │ Guard Cells (4×2)  │     │  ← Prevent self-pollution    │          │
+│  │  │  │    ┌────────┐      │     │                              │          │
+│  │  │  │    │ CUT    │      │     │  ← Cell Under Test           │          │
+│  │  │  │    └────────┘      │     │     (test this cell)         │          │
+│  │  │  └────────────────────┘     │                              │          │
+│  │  └─────────────────────────────┘                              │          │
 │  │                                                                 │        │
-│  │  Pseudo-code:                                                  │        │
-│  │  ──────────────                                                │        │
-│  │  For each CUT at position (x, y):                             │        │
-│  │    1. Extract training cells around CUT                        │        │
-│  │    2. noise_floor = mean(training_cells_power)                │        │
-│  │    3. alpha = N_train × (PFA^(-1/N_train) - 1)               │        │
-│  │    4. threshold = noise_floor × alpha                          │        │
-│  │    5. if power[x,y] > threshold:                              │        │
-│  │         detection[x,y] = True                                  │        │
+│  │  Pseudo-code:                                                  │         │
+│  │  ──────────────                                                │         │
+│  │  For each CUT at position (x, y):                             │          │
+│  │    1. Extract training cells around CUT                        │         │
+│  │    2. noise_floor = mean(training_cells_power)                │          │
+│  │    3. alpha = N_train × (PFA^(-1/N_train) - 1)               │           │
+│  │    4. threshold = noise_floor × alpha                          │         │
+│  │    5. if power[x,y] > threshold:                              │          │
+│  │         detection[x,y] = True                                  │         │
 │  │                                                                 │        │
 │  │  Parameters:                                                   │        │
 │  │  ├─ Train Cells (Range, Doppler): (8, 4)                     │        │
