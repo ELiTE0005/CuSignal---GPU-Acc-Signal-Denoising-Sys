@@ -19,7 +19,9 @@ RUN mamba install -y -c conda-forge -c nvidia \
     h5py \
     matplotlib \
     pytest \
+    scipy \
     tqdm \
+    websockets \
     && mamba clean -ya
 
 # Set the working directory

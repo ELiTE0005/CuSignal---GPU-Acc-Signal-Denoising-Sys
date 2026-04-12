@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+<body>
+  <div class="sim-root">
+
+    <!-- Header -->
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <span class="app-title">GPU Signal Processing Sim</span>
+        <span class="badge badge-green" id="gpu-badge">● GPU: Active</span>
+        <span class="badge badge-blue" id="phase-badge">Phase 1 — Data Integration</span>
+        <span class="badge badge-gray" id="fps-badge">0 FPS</span>
+      </div>
+      <div class="btn-row-top">
+        <button id="btn-pause" class="active">Pause</button>
+        <button id="btn-reset">Reset</button>
+      </div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Radar detections</div>
+        <div class="metric-value" id="m-det">0 <span class="metric-unit">/ frame</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Active tracks</div>
+        <div class="metric-value" id="m-trk">0 <span class="metric-unit">tracks</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Sonar beams</div>
+        <div class="metric-value" id="m-beam">128 <span class="metric-unit">beams</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">GPU utilization</div>
+        <div class="metric-value" id="m-gpu">0 <span class="metric-unit">%</span></div>
+      </div>
+    </div>
+
+    <!-- Main canvases: Radar + Sonar -->
+    <div class="panels-row">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Radar — PPI (Plan Position Indicator)</span>
+          <span class="badge badge-blue" id="radar-hz">0 Hz</span>
+        </div>
+        <canvas id="c-radar" height="280"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Sonar — Beamformed Output</span>
+          <span class="badge badge-amber" id="sonar-hz">0 Hz</span>
+        </div>
+        <canvas id="c-sonar" height="280"></canvas>
+      </div>
+    </div>
+
+    <!-- Range-Doppler + Tracking -->
+    <div class="panels-row">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Range-Doppler Map</span>
+          <span class="badge badge-gray">77 GHz FMCW</span>
+        </div>
+        <canvas id="c-rd" height="210"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Multi-Object Tracking (Kalman)</span>
+          <span class="badge badge-green" id="mota-badge">MOTA: --</span>
+        </div>
+        <canvas id="c-track" height="210"></canvas>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-section">
+      <div class="controls-row">
+        <div class="ctrl-group">
+          <div class="ctrl-label">Targets in scene</div>
+          <div class="ctrl-row">
+            <input type="range" id="sl-targets" min="1" max="20" value="6" step="1" />
+            <span class="ctrl-val" id="sv-targets">6</span>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-label">Noise level (σ)</div>
+          <div class="ctrl-row">
+            <input type="range" id="sl-noise" min="0" max="100" value="25" step="1" />
+            <span class="ctrl-val" id="sv-noise">25</span>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-label">Simulation speed</div>
+          <div class="ctrl-row">
+            <input type="range" id="sl-speed" min="1" max="5" value="2" step="1" />
+            <span class="ctrl-val" id="sv-speed">2×</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode + Phase buttons -->
+      <div class="btn-section">
+        <div class="btn-group">
+          <span class="btn-label">Mode:</span>
+          <button id="btn-radar" class="active">Radar only</button>
+          <button id="btn-sonar">Sonar only</button>
+          <button id="btn-fused">Fused</button>
+        </div>
+        <div class="btn-group">
+          <span class="btn-label">Phase:</span>
+          <button id="btn-p1" class="active">1 — Data</button>
+          <button id="btn-p2">2 — RT</button>
+          <button id="btn-p3">3 — Track</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend-row">
+      <div class="leg-item"><div class="leg-dot" style="background:#4CAF8A"></div>Pedestrian</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#5B9BD5"></div>Car</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#E67E3A"></div>Truck</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#A86CC1"></div>Motorcycle</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#D4585A"></div>Sonar target</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#888780; border: 1px dashed #888780"></div>Clutter</div>
+    </div>
+
+    <!-- GPU Log -->
+    <div class="log-panel" id="gpu-log">
+      <div class="log-line log-ok">[00.000] cuSignal init OK — CUDA 12.2 — GPU: RTX series</div>
+      <div class="log-line log-info">[00.001] cuDF allocator ready — pinned memory pool: 2 GB</div>
+      <div class="log-line log-info">[00.002] cuML DBSCAN loaded — n_neighbors=5</div>
+    </div>
+
+  </div>
+
+  <script src="simulation.js"></script>
+  <script>
+    const ws = new WebSocket('ws://localhost:8081');
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'frame') {
+          window.injectRealFrame(msg);
+        }
+      } catch (err) {
+        console.error('Error parsing frame payload', err);
+      }
+    };
+    ws.onopen = () => console.log('RadarScenes WebSocket Bridge Connected.');
+    ws.onerror = (e) => console.error('RadarScenes WebSocket Error:', e);
+  </script>
+</body>
+</html>

@@ -3,22 +3,16 @@ building a high-efficiency signal processing pipeline for Radar and Sonar system
 
 Radar Pipeline :
 
-Generated 128 chirp frames with 100 ADC samples each
-Ran 2D Range-Doppler GPU FFTs
-Applied CA-CFAR denoising on GPU
-Detected 31 target points, clustered into 5 unique targets using RAPIDS cuML
-Generated radar_output.png visualization
+Loads **RadarScenes** sequences (`radar_data.h5`); builds IF from real detector points → 2D Range–Doppler GPU FFTs → CA-CFAR → cuML DBSCAN.  
+Run: `python scripts/run_radar_pipeline.py` with `RADARSCENES_ROOT` set (see Docker compose).  
+Optional offline demo: `scripts/run_radar_synthetic_demo.py`
 
 Sonar Pipeline :
 
-Generated 32-element phased array sonar data (100k samples)
-Ran multi-beam spatial FFT beamforming
-Extracted 34,936 detection cells via thresholding
-Generated sonar_output.png visualization
+**Real audio:** `python scripts/run_sonar_pipeline.py --wav your.wav` → multi-beam spatial FFT → thresholding → `sonar_output.png`.  
+Optional synthetic phased-array demo: `scripts/run_sonar_synthetic_demo.py`
 
-Both scripts now:
+Both stacks:
 
-Run entirely on GPU via CuPy
-Use RAPIDS libraries (cuML, cuDF)
-Execute inside the Docker container with CUDA 12.2 and full RAPIDS suite
-Successfully process real automotive signal data
+Run on GPU via CuPy (and RAPIDS cuML/cuDF where used)  
+Execute inside the Docker container with CUDA 12.2 and the RAPIDS suite  

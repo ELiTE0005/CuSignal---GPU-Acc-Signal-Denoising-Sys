@@ -24,13 +24,31 @@ class SyntheticADCGenerator:
         self.num_adc_samples = int(self.fs * self.T)
         self.lambda_c = self.c / self.fc
         
-    def generate_adc_data(self, points):
+    def generate_adc_data(self, points, max_targets: int | None = None):
         """
         Generates 2D complex ADC Data (Slow Time x Fast Time) on the GPU
         from given targets.
         
-        points is a dict with 'range', 'velocity', 'rcs' (in CuPy arrays).
+        points is a dict with 'range', 'velocity', 'rcs' (CuPy arrays or numpy;
+        numpy is converted on GPU). If max_targets is set, keeps strongest
+        returns by RCS (same as RadarScenes loader cap).
         """
+        ranges = points["range"]
+        velocities = points["velocity"]
+        rcs = points["rcs"]
+        if ranges is None or len(ranges) == 0:
+            return cp.zeros((self.num_chirps, self.num_adc_samples), dtype=cp.complex64)
+
+        ranges = cp.asarray(ranges, dtype=cp.float32)
+        velocities = cp.asarray(velocities, dtype=cp.float32)
+        rcs = cp.asarray(rcs, dtype=cp.float32)
+
+        if max_targets is not None and ranges.shape[0] > max_targets:
+            order = cp.argsort(-rcs)[: int(max_targets)]
+            ranges = ranges[order]
+            velocities = velocities[order]
+            rcs = rcs[order]
+
         # Time arrays on GPU
         t_fast = cp.arange(self.num_adc_samples, dtype=cp.float32) / self.fs
         t_slow = cp.arange(self.num_chirps, dtype=cp.float32) * self.T
@@ -40,14 +58,9 @@ class SyntheticADCGenerator:
         
         # Broadcaster arrays
         T_fast_mesh, T_slow_mesh = cp.meshgrid(t_fast, t_slow)
-        
-        # Vectorized generation (if points aren't too huge, else need batching)
-        # To avoid OOM for large point clouds, we iterate or batch
-        ranges = points['range']
-        velocities = points['velocity']
-        
+
         # RCS is typically in dBsm, convert to linear amplitude
-        linear_rcs = cp.power(10.0, points['rcs'] / 10.0)
+        linear_rcs = cp.power(10.0, rcs / 10.0)
         amplitudes = cp.sqrt(linear_rcs)
         
         for i in range(len(ranges)):

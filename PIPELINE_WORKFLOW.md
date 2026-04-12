@@ -653,7 +653,7 @@ Usage Commands:
 ───────────────
 docker-compose up -d cusignal-dev
 docker exec cusignal-cusignal-dev-1 python /app/cusignal_project/scripts/run_radar_pipeline.py
-docker exec cusignal-cusignal-dev-1 python /app/cusignal_project/scripts/run_sonar_pipeline.py
+docker exec cusignal-cusignal-dev-1 python /app/cusignal_project/scripts/run_sonar_pipeline.py --wav /app/cusignal_project/sample.wav
 ```
 
 ---
