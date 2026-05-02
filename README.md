@@ -1,18 +1,35 @@
-building a high-efficiency signal processing pipeline for Radar and Sonar systems, focusing on clutter/noise suppression, Doppler filtering, and target detection. The system will leverage Genetic Algorithms (GA) to dynamically optimize processing parameters and curate/modify datasets for better downstream modeling.
+CuSignal — GPU signal processing with an **MSTAR SAR ATR** track (classification on real SAR chips).
 
+### MSTAR layout
 
-Radar Pipeline :
+Put the public MSTAR release under **`archive/MSTAR/`** (see **`archive/MSTAR/README.txt`**):
 
-Loads **RadarScenes** sequences (`radar_data.h5`); builds IF from real detector points → 2D Range–Doppler GPU FFTs → CA-CFAR → cuML DBSCAN.  
-Run: `python scripts/run_radar_pipeline.py` with `RADARSCENES_ROOT` set (see Docker compose).  
-Optional offline demo: `scripts/run_radar_synthetic_demo.py`
+- `train/<CLASS>/...` — Phoenix `.001` / `.cphd` chips or PNG/TIF
+- `test/<CLASS>/...`
 
-Sonar Pipeline :
+Docker mounts **`./archive/MSTAR` → `/data/MSTAR`**; **`MSTAR_ROOT=/data/MSTAR`** is set in `docker-compose.yml`.
 
-**Real audio:** `python scripts/run_sonar_pipeline.py --wav your.wav` → multi-beam spatial FFT → thresholding → `sonar_output.png`.  
-Optional synthetic phased-array demo: `scripts/run_sonar_synthetic_demo.py`
+### Commands (inside the GPU container)
 
-Both stacks:
+```bash
+# Summarize chip counts
+python scripts/run_mstar_pipeline.py --summarize --mstar-root /data/MSTAR
 
-Run on GPU via CuPy (and RAPIDS cuML/cuDF where used)  
-Execute inside the Docker container with CUDA 12.2 and the RAPIDS suite  
+# Visualize one chip (spatial + optional FFT branch)
+python scripts/run_mstar_pipeline.py --chip /path/to/chip.001 --fft --out mstar_view.png
+
+# Train CNN classifier
+python scripts/train_mstar_cnn.py --mstar-root /data/MSTAR --epochs 40 --out checkpoints/mstar_cnn.pt
+
+# Optional: 2-channel input (spatial + FFT log-magnitude), CuPy FFT in training
+python scripts/train_mstar_cnn.py --mstar-root /data/MSTAR --fft-branch --gpu-fft
+```
+
+### Pipeline
+
+1. **`mstar_phoenix.py`** — Phoenix ASCII header + binary magnitude (or interleaved mag/phase), or **Pillow** for images.
+2. **`sar_pipeline.py`** — log scaling, resize (default **88×88**), optional **FFT** branch (still GPU-friendly via CuPy when enabled).
+3. **`models/mstar_cnn.py`** — PyTorch CNN (**torch** installed in the Dockerfile).
+
+Automotive FMCW / sonar demos remain under **`scripts/`** (radar/sonar) but are separate from this SAR benchmark.
+

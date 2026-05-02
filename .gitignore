@@ -1,6 +1,8 @@
 RadarScenes/
-
+archive
 # Local RadarScenes mirror (keep folder; ignore heavy HDF5)
 datasets/RadarScenes/data/*
+
+checkpoints/
 !datasets/RadarScenes/data/.gitkeep
 !datasets/RadarScenes/data/PLACE_SEQUENCE_FOLDERS_HERE.txt

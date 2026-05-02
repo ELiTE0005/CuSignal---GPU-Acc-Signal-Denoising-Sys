@@ -22,7 +22,11 @@ RUN mamba install -y -c conda-forge -c nvidia \
     scipy \
     tqdm \
     websockets \
+    pillow \
     && mamba clean -ya
+
+# PyTorch (CUDA 12.1 wheels work with the 12.2 driver in this image)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
 # Set the working directory
 WORKDIR /app/cusignal_project

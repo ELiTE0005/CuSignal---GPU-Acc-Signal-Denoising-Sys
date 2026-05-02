@@ -2,13 +2,10 @@ services:
   cusignal-dev:
     build: .
     environment:
-      # Default inside container when you mount datasets/RadarScenes/data (see volumes)
-      RADARSCENES_ROOT: /data/RadarScenes/data
+      MSTAR_ROOT: /data/MSTAR
     volumes:
       - .:/app/cusignal_project
-      # Put RadarScenes sequence_* folders under ./datasets/RadarScenes/data on the host,
-      # or change the left-hand path to your dataset location (Windows: use /c/Users/... style or quotes).
-      - ./datasets/RadarScenes/data:/data/RadarScenes/data:ro
+      - ./archive/MSTAR:/data/MSTAR:ro
     deploy:
       resources:
         reservations:

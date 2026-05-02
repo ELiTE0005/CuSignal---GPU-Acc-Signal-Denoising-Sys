@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSTAR Signal Processing Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #f5f2ec;
+    --surface:   #ede9e1;
+    --panel:     #ffffff;
+    --border:    #d8d2c6;
+    --border2:   #bfb8ac;
+    --ink:       #1a1612;
+    --ink-mid:   #4a4540;
+    --ink-dim:   #8a857e;
+    --violet:    #5b3de8;
+    --violet-lt: #ede8fc;
+    --indigo:    #3d4de8;
+    --amber:     #d97706;
+    --amber-lt:  #fef3c7;
+    --rose:      #e03d5a;
+    --rose-lt:   #fde8ec;
+    --teal:      #0d7a6b;
+    --teal-lt:   #d1f0eb;
+    --mono:      'Space Mono', monospace;
+    --head:      'Syne', sans-serif;
+    --body:      'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* subtle dot grid */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  /* ── HEADER ── */
+  .top-header {
+    position: relative; z-index: 10;
+    padding: 14px 32px;
+    border-bottom: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel);
+    animation: slideDown 0.5s ease both;
+  }
+  @keyframes slideDown {
+    from { opacity:0; transform: translateY(-8px); }
+    to   { opacity:1; transform: none; }
+  }
+
+  .logo-block { display: flex; align-items: center; gap: 14px; }
+
+  .logo-icon {
+    width: 42px; height: 42px;
+    background: var(--violet);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+    flex-shrink: 0;
+  }
+  .logo-icon .ring {
+    position: absolute;
+    width: 34px; height: 34px;
+    border: 1.5px solid rgba(255,255,255,0.25);
+    border-top-color: rgba(255,255,255,0.8);
+    border-radius: 50%;
+    animation: spin 3s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .logo-icon svg { width: 22px; height: 22px; position: relative; z-index: 1; }
+
+  .logo-text h1 {
+    font-family: var(--head);
+    font-size: 17px; font-weight: 800;
+    color: var(--ink);
+    letter-spacing: 0.02em; line-height: 1;
+  }
+  .logo-text p {
+    font-family: var(--mono);
+    font-size: 9px; color: var(--ink-dim);
+    letter-spacing: 0.12em; margin-top: 4px;
+  }
+
+  .header-meta { display: flex; gap: 24px; align-items: center; }
+  .hm-item { text-align: right; }
+  .hm-label {
+    font-family: var(--mono); font-size: 8px;
+    color: var(--ink-dim); letter-spacing: 0.1em;
+    display: block; text-transform: uppercase;
+  }
+  .hm-val { font-family: var(--mono); font-size: 12px; color: var(--violet); font-weight: 700; }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--teal); color: #fff;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.1em; padding: 4px 10px;
+    border-radius: 100px;
+  }
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #fff;
+    animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ticker */
+  .signal-ticker {
+    font-family: var(--mono); font-size: 9px; color: var(--ink-dim);
+    overflow: hidden; width: 160px; white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+  .ticker-inner { display: inline-block; animation: ticker 16s linear infinite; }
+  @keyframes ticker {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(-100%); }
+  }
+
+  /* ── PIPELINE BAR ── */
+  .pipeline-bar {
+    position: relative; z-index: 10;
+    display: flex; align-items: center;
+    padding: 0 32px;
+    background: var(--surface);
+    border-bottom: 1.5px solid var(--border);
+    overflow-x: auto;
+    animation: slideDown 0.5s 0.05s ease both;
+  }
+  .pipe-node {
+    display: flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 0.1em;
+    white-space: nowrap; padding: 10px 0;
+    cursor: pointer; transition: color 0.2s;
+  }
+  .pipe-node:hover { color: var(--ink-mid); }
+  .pipe-node.active { color: var(--violet); font-weight: 700; }
+  .pipe-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--border2); flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .pipe-node.active .pipe-dot {
+    background: var(--violet);
+    animation: blink 2s infinite;
+  }
+  .pipe-node.done .pipe-dot { background: var(--teal); }
+  .pipe-node.done { color: var(--teal); }
+  .pipe-line {
+    flex: 1; height: 1px; min-width: 40px;
+    background: var(--border); position: relative;
+    overflow: hidden; margin: 0 8px;
+  }
+  .pipe-line-flow {
+    position: absolute; top: 0; bottom: 0;
+    width: 35%;
+    background: linear-gradient(90deg, transparent, var(--violet), transparent);
+    animation: pipeFlow 2s linear infinite;
+  }
+  @keyframes pipeFlow { from{left:-35%} to{left:100%} }
+
+  /* ── STAGE NAV ── */
+  .stage-nav {
+    position: relative; z-index: 10;
+    display: flex;
+    background: var(--panel);
+    border-bottom: 1.5px solid var(--border);
+    padding: 0 32px;
+    overflow-x: auto;
+    animation: slideDown 0.5s 0.1s ease both;
+  }
+  .snav-btn {
+    font-family: var(--head); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-dim);
+    background: none; border: none;
+    border-bottom: 2.5px solid transparent;
+    padding: 13px 22px;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.2s; position: relative;
+  }
+  .snav-btn:hover { color: var(--ink); }
+  .snav-btn.active { color: var(--violet); border-bottom-color: var(--violet); }
+  .snav-btn .stage-num {
+    font-family: var(--mono); font-size: 8px;
+    display: block; margin-bottom: 2px;
+    opacity: 0.5; letter-spacing: 0.1em;
+  }
+  .snav-sep {
+    display: flex; align-items: center;
+    color: var(--border2); font-size: 14px;
+    padding: 0 2px; user-select: none;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    position: relative; z-index: 5;
+    padding: 24px 32px 48px;
+    max-width: 1440px; margin: 0 auto;
+  }
+
+  .stage-panel { display: none; }
+  .stage-panel.visible {
+    display: block;
+    animation: panelIn 0.3s ease both;
+  }
+  @keyframes panelIn {
+    from { opacity:0; transform: translateY(10px); }
+    to   { opacity:1; transform: none; }
+  }
+
+  /* ── CARDS ── */
+  .pcard {
+    background: var(--panel);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.25s, border-color 0.25s;
+  }
+  .pcard:hover {
+    box-shadow: 0 4px 20px rgba(26,22,18,0.08);
+    border-color: var(--border2);
+  }
+  /* top accent strip */
+  .pcard::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2.5px;
+    background: var(--violet);
+    opacity: 0.18;
+  }
+  .pcard-amber::before { background: var(--amber); opacity: 0.3; }
+  .pcard-teal::before  { background: var(--teal);  opacity: 0.3; }
+  .pcard-rose::before  { background: var(--rose);  opacity: 0.2; }
+  .pcard-solid-violet { border-color: rgba(91,61,232,0.25); }
+  .pcard-solid-violet::before { background: var(--violet); opacity: 0.5; }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 0.18em;
+    text-transform: uppercase; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: var(--border);
+  }
+
+  /* ── GRIDS ── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .gap-top { margin-top: 18px; }
+
+  /* ── STAGE HEADER ── */
+  .stage-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    animation: panelIn 0.35s ease both;
+  }
+  .stage-badge {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.14em; padding: 3px 10px;
+    border-radius: 4px; background: var(--violet);
+    color: #fff;
+  }
+  .stage-title {
+    font-family: var(--head); font-size: 15px; font-weight: 700;
+    color: var(--ink); letter-spacing: 0.02em;
+  }
+
+  /* ── METRICS ── */
+  .metric {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+    position: relative; overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .metric:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(26,22,18,0.1); }
+  .metric-label {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.1em; color: var(--ink-dim);
+    margin-bottom: 6px; text-transform: uppercase;
+  }
+  .metric-val {
+    font-family: var(--head); font-size: 27px; font-weight: 800;
+    color: var(--violet); line-height: 1;
+  }
+  .metric-val.amber { color: var(--amber); }
+  .metric-val.teal  { color: var(--teal); }
+  .metric-val.rose  { color: var(--rose); }
+  .metric-sub { font-size: 11px; color: var(--ink-dim); margin-top: 4px; }
+
+  /* ── CANVAS ── */
+  .canvas-wrap {
+    background: #f8f5f0;
+    border: 1.5px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    position: relative;
+  }
+  .canvas-wrap::after {
+    content: '';
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--violet), transparent);
+    opacity: 0.4;
+    animation: scanLine 5s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes scanLine {
+    0%   { top: 0%;   opacity: 0.5; }
+    85%  { opacity: 0.3; }
+    100% { top: 100%; opacity: 0; }
+  }
+  .canvas-wrap canvas { display: block; width: 100%; height: auto; }
+  .canvas-label {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-dim);
+    padding: 7px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex; justify-content: space-between; align-items: center;
+    letter-spacing: 0.06em;
+  }
+  .canvas-badge {
+    font-size: 9px; padding: 2px 8px; border-radius: 4px;
+    font-family: var(--mono); letter-spacing: 0.06em; font-weight: 700;
+  }
+  .badge-violet { background: var(--violet-lt); color: var(--violet); }
+  .badge-amber  { background: var(--amber-lt);  color: var(--amber); }
+  .badge-teal   { background: var(--teal-lt);   color: var(--teal); }
+
+  /* ── CONTROLS ── */
+  .ctrl-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 11px;
+  }
+  .ctrl-label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--ink-dim); min-width: 160px; letter-spacing: 0.04em;
+  }
+  .ctrl-val {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--violet); font-weight: 700;
+    min-width: 52px; text-align: right;
+  }
+  .ctrl-val.amber { color: var(--amber); }
+  input[type=range] {
+    flex: 1; -webkit-appearance: none;
+    height: 3px; border-radius: 2px;
+    background: var(--border2); outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--violet);
+    border: 2px solid var(--panel);
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(91,61,232,0.4);
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px rgba(91,61,232,0.15);
+    transform: scale(1.1);
+  }
+  input[type=range].amber-track { background: #fde68a; }
+  input[type=range].amber-track::-webkit-slider-thumb {
+    background: var(--amber);
+    box-shadow: 0 1px 4px rgba(217,119,6,0.4);
+  }
+  input[type=range].amber-track:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px rgba(217,119,6,0.15);
+  }
+
+  select {
+    flex: 1; background: var(--surface);
+    border: 1.5px solid var(--border); border-radius: 7px;
+    color: var(--ink); padding: 8px 10px;
+    font-family: var(--mono); font-size: 11px;
+    outline: none; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  select:focus { border-color: var(--violet); }
+
+  /* ── UPLOAD BAR ── */
+  .upload-bar {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .upload-chip-label {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--ink-dim); letter-spacing: 0.12em;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .upload-divider {
+    font-family: var(--mono); font-size: 9px; color: var(--border2);
+  }
+  .file-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 6px; padding: 5px 11px;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-mid);
+    cursor: pointer; letter-spacing: 0.05em;
+    transition: border-color 0.2s, color 0.2s; white-space: nowrap;
+  }
+  .file-btn:hover { border-color: var(--violet); color: var(--violet); }
+  .chip-status {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 9px; color: var(--ink-dim);
+    margin-left: auto; letter-spacing: 0.06em; white-space: nowrap;
+  }
+  .chip-status.loaded { color: var(--teal); }
+  .chip-status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border2); flex-shrink: 0;
+  }
+  .chip-status.loaded .chip-status-dot { background: var(--teal); }
+
+  /* ── BUTTONS ── */
+  .run-btn {
+    font-family: var(--head); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 7px; padding: 9px 20px;
+    cursor: pointer; border: none;
+    transition: all 0.2s; position: relative; overflow: hidden;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .run-btn:active { transform: scale(0.97); }
+
+  .btn-violet {
+    background: var(--violet); color: #fff;
+    box-shadow: 0 2px 8px rgba(91,61,232,0.3);
+  }
+  .btn-violet:hover { background: #4a2fd6; box-shadow: 0 4px 16px rgba(91,61,232,0.4); transform: translateY(-1px); }
+  .btn-violet:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-amber {
+    background: var(--amber); color: #fff;
+    box-shadow: 0 2px 8px rgba(217,119,6,0.3);
+  }
+  .btn-amber:hover { background: #b45309; box-shadow: 0 4px 16px rgba(217,119,6,0.35); transform: translateY(-1px); }
+
+  .btn-teal {
+    background: var(--teal); color: #fff;
+    box-shadow: 0 2px 8px rgba(13,122,107,0.3);
+  }
+  .btn-teal:hover { background: #0a6357; box-shadow: 0 4px 16px rgba(13,122,107,0.35); transform: translateY(-1px); }
+
+  .btn-outline {
+    background: transparent; color: var(--ink-mid);
+    border: 1.5px solid var(--border2);
+  }
+  .btn-outline:hover { border-color: var(--violet); color: var(--violet); background: var(--violet-lt); transform: translateY(-1px); }
+
+  .btn-icon { font-size: 14px; }
+
+  /* ── CHIPS ── */
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.07em; padding: 4px 10px; border-radius: 5px;
+  }
+  .chip-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .chip-idle { background: var(--surface); color: var(--ink-dim); border: 1px solid var(--border); }
+  .chip-idle .chip-dot { background: var(--ink-dim); }
+  .chip-run  { background: var(--amber-lt); color: var(--amber); border: 1px solid rgba(217,119,6,0.3); }
+  .chip-run .chip-dot { background: var(--amber); animation: blink 0.8s infinite; }
+  .chip-ok   { background: var(--teal-lt); color: var(--teal); border: 1px solid rgba(13,122,107,0.3); }
+  .chip-ok .chip-dot { background: var(--teal); }
+
+  /* ── BAR CHARTS ── */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .bar-label { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); min-width: 52px; text-align: right; }
+  .bar-track {
+    flex: 1; height: 11px;
+    background: var(--surface); border-radius: 3px;
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%; border-radius: 2px;
+    transition: width 0.55s cubic-bezier(0.4,0,0.2,1);
+  }
+  .bar-count { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); min-width: 52px; }
+
+  /* ── GA LOG ── */
+  .ga-log {
+    background: #f0ede8;
+    border: 1.5px solid var(--border);
+    border-radius: 7px; padding: 12px 14px;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--violet); line-height: 1.8;
+    min-height: 110px; max-height: 140px;
+    overflow: hidden; letter-spacing: 0.04em;
+    position: relative; white-space: pre;
+  }
+  .ga-log::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--violet);
+    opacity: 0.3;
+    animation: logBar 2.5s ease-in-out infinite;
+  }
+  @keyframes logBar { 0%,100%{opacity:0.2} 50%{opacity:0.7} }
+
+  /* ── CONFUSION MATRIX ── */
+  .conf-wrap { overflow-x: auto; }
+  .conf-grid { display: grid; gap: 2px; font-family: var(--mono); }
+  .conf-cell {
+    padding: 5px 3px; text-align: center;
+    border-radius: 3px; font-size: 10px; font-weight: 700;
+    min-width: 32px;
+    transition: transform 0.15s;
+  }
+  .conf-cell:not(.conf-header):hover { transform: scale(1.12); z-index: 2; position: relative; }
+  .conf-header { font-size: 9px; color: var(--ink-dim); font-weight: 400; letter-spacing: 0.05em; }
+
+  /* ── NOTE ── */
+  .note {
+    background: var(--violet-lt);
+    border-left: 3px solid var(--violet);
+    padding: 10px 14px; border-radius: 0 7px 7px 0;
+    font-size: 12px; color: var(--ink-mid);
+    margin-top: 12px; line-height: 1.6;
+  }
+
+  /* ── CORNER DECORATIONS ── */
+  .corner-tl, .corner-br {
+    position: absolute; width: 12px; height: 12px;
+  }
+  .corner-tl { top: 8px; left: 8px; border-top: 1.5px solid var(--violet); border-left: 1.5px solid var(--violet); opacity: 0.35; }
+  .corner-br { bottom: 8px; right: 8px; border-bottom: 1.5px solid var(--violet); border-right: 1.5px solid var(--violet); opacity: 0.35; }
+
+  /* ── CHECKBOX ── */
+  .check-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .check-row label { font-size: 13px; color: var(--ink); cursor: pointer; }
+  input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--violet); cursor: pointer; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* data stream corner text */
+  .data-stream {
+    position: absolute; top: 8px; right: 14px;
+    font-family: var(--mono); font-size: 9px;
+    color: rgba(91,61,232,0.12); line-height: 1.4;
+    pointer-events: none; letter-spacing: 0.05em;
+    animation: streamFade 3s ease-in-out infinite;
+  }
+  @keyframes streamFade { 0%,100%{opacity:0.4} 50%{opacity:1} }
+
+  /* ── DIVIDER ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+  /* experiment comparison row highlight */
+  .comp-best { background: var(--teal-lt) !important; }
+</style>
+</head>
+<body>
+
+<!-- TOP HEADER -->
+<header class="top-header">
+  <div class="logo-block">
+    <div class="logo-icon">
+      <div class="ring"></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5">
+        <circle cx="12" cy="12" r="9"/>
+        <circle cx="12" cy="12" r="5"/>
+        <circle cx="12" cy="12" r="1.5" fill="rgba(255,255,255,0.9)"/>
+        <line x1="12" y1="3" x2="12" y2="1"/>
+        <line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="3" y1="12" x2="1" y2="12"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <h1>MSTAR SIGNAL PROCESSING PIPELINE</h1>
+      <p>GA-OPTIMIZED RADAR / SONAR TARGET DETECTION SYSTEM</p>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div class="hm-item">
+      <span class="hm-label">DATASET</span>
+      <span class="hm-val">MSTAR-8</span>
+    </div>
+    <div class="hm-item">
+      <span class="hm-label">CLASSES</span>
+      <span class="hm-val">8 vehicles</span>
+    </div>
+    <div class="hm-item">
+      <span class="hm-label">SENSOR</span>
+      <span class="hm-val">X-band SAR</span>
+    </div>
+    <div class="hm-item">
+      <span class="hm-label">STATUS</span>
+      <div class="status-pill"><span class="status-dot"></span>ONLINE</div>
+    </div>
+    <div class="hm-item">
+      <div class="signal-ticker">
+        <span class="ticker-inner">SNR: 18.4 dB · RANGE: 4.2 km · FRAME: 0xA3F2 · EPOCH: <span id="epochCounter">00041</span> · FREQ: 9.6 GHz</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- PIPELINE BAR -->
+<div class="pipeline-bar" id="pipelineBar">
+  <div class="pipe-node active" id="pn0"><span class="pipe-dot"></span>01 · CLUTTER SUPPRESSION</div>
+  <div class="pipe-line"><div class="pipe-line-flow"></div></div>
+  <div class="pipe-node" id="pn1"><span class="pipe-dot"></span>02 · FEATURE EXTRACTION</div>
+  <div class="pipe-line"><div class="pipe-line-flow" style="animation-delay:0.5s"></div></div>
+  <div class="pipe-node" id="pn2"><span class="pipe-dot"></span>03 · GA CURATION</div>
+  <div class="pipe-line"><div class="pipe-line-flow" style="animation-delay:1s"></div></div>
+  <div class="pipe-node" id="pn3"><span class="pipe-dot"></span>04 · CLASSIFICATION</div>
+  <div class="pipe-line"><div class="pipe-line-flow" style="animation-delay:1.5s"></div></div>
+  <div class="pipe-node" id="pn4"><span class="pipe-dot"></span>OUTPUT</div>
+</div>
+
+<!-- STAGE NAV -->
+<nav class="stage-nav">
+  <button class="snav-btn active" onclick="showStage(0)">
+    <span class="stage-num">STAGE 01</span>Clutter Suppression
+  </button>
+  <span class="snav-sep">›</span>
+  <button class="snav-btn" onclick="showStage(1)">
+    <span class="stage-num">STAGE 02</span>Feature Extraction
+  </button>
+  <span class="snav-sep">›</span>
+  <button class="snav-btn" onclick="showStage(2)">
+    <span class="stage-num">STAGE 03</span>GA Dataset Curation
+  </button>
+  <span class="snav-sep">›</span>
+  <button class="snav-btn" onclick="showStage(3)">
+    <span class="stage-num">STAGE 04</span>Classification
+  </button>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- ════════════ STAGE 1 ════════════ -->
+  <div class="stage-panel visible" id="sp0">
+    <div class="stage-header">
+      <span class="stage-badge">STAGE 01 / 04</span>
+      <span class="stage-title">Clutter Suppression &amp; MTI Filtering</span>
+    </div>
+    <div class="grid2">
+
+      <!-- SAR chips -->
+      <div class="pcard pcard-teal">
+        <div class="corner-tl"></div><div class="corner-br"></div>
+        <div class="data-stream" id="dataStream1">10110100<br>01001011<br>11010010</div>
+        <div class="section-label">SAR CHIP VISUALIZATION</div>
+
+        <!-- upload bar -->
+        <div class="upload-bar">
+          <span class="upload-chip-label">LOAD CHIP</span>
+          <select id="archiveSelect" onchange="loadFromArchive()"
+            style="flex:unset;min-width:170px;font-size:10px;padding:5px 8px">
+            <option value="">— Browse archive —</option>
+          </select>
+          <span class="upload-divider">or</span>
+          <label class="file-btn">
+            ↑ Upload file
+            <input type="file" id="chipFileInput"
+              accept=".001,.jpg,.jpeg,.png,.tif,.tiff"
+              style="display:none" onchange="loadFromFile()">
+          </label>
+          <span class="chip-status" id="chipStatus">
+            <span class="chip-status-dot"></span>&nbsp;NO CHIP
+          </span>
+        </div>
+
+        <div class="grid2" style="gap:12px">
+          <div>
+            <div class="canvas-wrap">
+              <canvas id="rawChip" width="240" height="240"></canvas>
+            </div>
+            <div class="canvas-label">
+              <span id="rawChipLabel">RAW INPUT · 128×128</span>
+              <span class="canvas-badge badge-amber">UNFILTERED</span>
+            </div>
+          </div>
+          <div>
+            <div class="canvas-wrap">
+              <canvas id="cleanChip" width="240" height="240"></canvas>
+            </div>
+            <div class="canvas-label">
+              <span id="cleanChipLabel">AFTER MTI FILTER</span>
+              <span class="canvas-badge badge-violet">PROCESSED</span>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          Violet ring = target scattering center &nbsp;·&nbsp; Dashed box = preserved signature region &nbsp;·&nbsp; Sliders update live
+        </div>
+      </div>
+
+      <!-- Controls + metrics -->
+      <div>
+        <div class="pcard" style="margin-bottom:16px">
+          <div class="section-label">GA-TUNED FILTER PARAMETERS</div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">SPECKLE THRESHOLD</span>
+            <input type="range" min="10" max="80" value="35" step="1" id="sThresh" oninput="updateStage1()">
+            <span class="ctrl-val" id="sThreshVal">35</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">MTI FILTER CUTOFF</span>
+            <input type="range" min="5" max="60" value="22" step="1" id="mtiCut" oninput="updateStage1()">
+            <span class="ctrl-val" id="mtiCutVal">22</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">CLUTTER WINDOW SIZE</span>
+            <input type="range" min="3" max="15" value="7" step="1" id="winSize" oninput="updateStage1()">
+            <span class="ctrl-val" id="winSizeVal">7</span>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+            <button class="run-btn btn-violet" onclick="randomizeFilterParams()">
+              <span class="btn-icon">⟳</span> Randomize Params
+            </button>
+            <button class="run-btn btn-outline" onclick="resetFilterParams()">Reset Defaults</button>
+          </div>
+        </div>
+
+        <div class="grid3">
+          <div class="metric">
+            <div class="metric-label">TARGET-TO-CLUTTER</div>
+            <div class="metric-val" id="tcrVal">14.2 dB</div>
+            <div class="metric-sub">GA fitness signal</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">CLUTTER SUPPRESSED</div>
+            <div class="metric-val amber" id="suppVal">68%</div>
+            <div class="metric-sub">Background pixels zeroed</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">TARGET PRESERVED</div>
+            <div class="metric-val teal" id="targVal">91%</div>
+            <div class="metric-sub">Scattering center intact</div>
+          </div>
+        </div>
+
+        <div class="pcard gap-top">
+          <div class="section-label">PIPELINE CONTEXT</div>
+          <p style="font-size:12px;color:var(--ink-mid);line-height:1.8">
+            Every MSTAR chip contains two zones: the <strong style="color:var(--violet)">target</strong>
+            (bright scattering center) and the surrounding
+            <strong style="color:var(--amber)">clutter background</strong> (ground return, shadows, speckle noise).
+            The GA evolves filter weights by maximising TCR — the ratio of target energy to background energy.
+            Fitness = P<sub>d</sub> − P<sub>fa</sub>, evaluated per generation.
+          </p>
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <button class="run-btn btn-violet" onclick="showStage(1)">
+              Next: Feature Extraction →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ STAGE 2 ════════════ -->
+  <div class="stage-panel" id="sp1">
+    <div class="stage-header">
+      <span class="stage-badge">STAGE 02 / 04</span>
+      <span class="stage-title">Feature Extraction — Aspect &amp; Doppler Analysis</span>
+    </div>
+    <div class="grid2">
+      <div class="pcard pcard-solid-violet">
+        <div class="corner-tl"></div><div class="corner-br"></div>
+        <div class="section-label">ASPECT ANGLE SWEEP · 0°–360°</div>
+        <div class="canvas-wrap">
+          <canvas id="aspectCanvas" width="480" height="280"></canvas>
+        </div>
+        <div class="canvas-label">
+          <span>POLAR SCATTERING INTENSITY vs. ASPECT ANGLE</span>
+          <span class="canvas-badge badge-violet">POLAR PLOT</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="pcard" style="margin-bottom:16px">
+          <div class="corner-tl"></div><div class="corner-br"></div>
+          <div class="section-label">RANGE-DOPPLER FEATURE MAP · 2D FFT</div>
+          <div class="canvas-wrap">
+            <canvas id="dopplerCanvas" width="480" height="200"></canvas>
+          </div>
+          <div class="canvas-label">
+            <span>ANGULAR FREQUENCY DECOMPOSITION</span>
+            <span class="canvas-badge badge-amber">FFT OUTPUT</span>
+          </div>
+        </div>
+
+        <div class="pcard">
+          <div class="section-label">EXTRACTION PARAMETERS</div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">DEPRESSION ANGLE</span>
+            <input type="range" min="15" max="45" value="17" step="1" id="depAngle" oninput="updateStage2()">
+            <span class="ctrl-val" id="depAngleVal">17°</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">FFT RESOLUTION BINS</span>
+            <input type="range" min="32" max="256" value="128" step="32" id="fftBins" oninput="updateStage2()">
+            <span class="ctrl-val" id="fftBinsVal">128</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">ASPECT SAMPLING RATE</span>
+            <input type="range" min="1" max="10" value="5" step="1" id="aspectRate" oninput="updateStage2()">
+            <span class="ctrl-val" id="aspectRateVal">5°/step</span>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+            <button class="run-btn btn-violet" onclick="rerunAspect()">
+              <span class="btn-icon">↺</span> Recompute Features
+            </button>
+            <button class="run-btn btn-outline" onclick="resetFeatureParams()">Reset Defaults</button>
+          </div>
+          <div class="grid3" style="margin-top:14px">
+            <div class="metric">
+              <div class="metric-label">FEATURE DIM.</div>
+              <div class="metric-val" id="featDim">256</div>
+              <div class="metric-sub">After FFT compression</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">ANGULAR VIEWS</div>
+              <div class="metric-val amber" id="angCov">72</div>
+              <div class="metric-sub">Unique aspect samples</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">PEAK ANGLE</div>
+              <div class="metric-val teal" id="peakAngle">47°</div>
+              <div class="metric-sub">Dominant return lobe</div>
+            </div>
+          </div>
+          <div style="margin-top:12px">
+            <button class="run-btn btn-teal" onclick="showStage(2)">
+              Next: GA Curation →
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ STAGE 3 ════════════ -->
+  <div class="stage-panel" id="sp3ga">
+    <div class="stage-header">
+      <span class="stage-badge">STAGE 03 / 04</span>
+      <span class="stage-title">Genetic Algorithm Dataset Curation</span>
+    </div>
+    <div class="grid2">
+
+      <!-- Distribution bars -->
+      <div>
+        <div class="pcard" style="margin-bottom:16px">
+          <div class="section-label">CLASS DISTRIBUTION · BEFORE CURATION</div>
+          <div id="classBars"></div>
+        </div>
+        <div class="pcard pcard-teal">
+          <div class="section-label">CLASS DISTRIBUTION · AFTER CURATION</div>
+          <div id="classBarsAfter"></div>
+          <div id="curationNote" style="display:none" class="note">
+            GA augmented minority classes to improve balance. Purple delta values show samples added.
+          </div>
+        </div>
+      </div>
+
+      <!-- GA controls -->
+      <div>
+        <div class="pcard pcard-amber" style="margin-bottom:16px">
+          <div class="section-label">GENETIC ALGORITHM PARAMETERS</div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">GA GENERATIONS</span>
+            <input type="range" class="amber-track" min="5" max="100" value="30" step="5" id="gaGen"
+              oninput="document.getElementById('gaGenVal').textContent=this.value">
+            <span class="ctrl-val amber" id="gaGenVal">30</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">MUTATION RATE</span>
+            <input type="range" class="amber-track" min="1" max="30" value="12" step="1" id="mutRate"
+              oninput="document.getElementById('mutRateVal').textContent=this.value+'%'">
+            <span class="ctrl-val amber" id="mutRateVal">12%</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">AUGMENTATION STRENGTH</span>
+            <input type="range" class="amber-track" min="0" max="100" value="40" step="5" id="augStr"
+              oninput="document.getElementById('augStrVal').textContent=this.value+'%'">
+            <span class="ctrl-val amber" id="augStrVal">40%</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap">
+            <button class="run-btn btn-amber" id="gaRunBtn" onclick="runGA()">
+              <span class="btn-icon">▶</span> Run GA Curation
+            </button>
+            <button class="run-btn btn-outline" onclick="resetGA()">Reset</button>
+            <div class="chip chip-idle" id="gaStatusChip">
+              <span class="chip-dot"></span><span id="gaStatusTxt">IDLE</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pcard" style="margin-bottom:16px">
+          <div class="section-label">EVOLUTION LOG</div>
+          <div class="ga-log" id="gaLog">— press RUN GA CURATION to evolve chromosome population —</div>
+        </div>
+
+        <div class="grid3">
+          <div class="metric">
+            <div class="metric-label">SAMPLES ADDED</div>
+            <div class="metric-val" id="sampAdded">—</div>
+            <div class="metric-sub">Synthetic augmentation</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">BALANCE SCORE</div>
+            <div class="metric-val amber" id="balScore">—</div>
+            <div class="metric-sub">1.0 = perfectly balanced</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">BEST FITNESS</div>
+            <div class="metric-val teal" id="bestFit">—</div>
+            <div class="metric-sub">Pd − Pfa objective</div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <button class="run-btn btn-violet" id="goCls" onclick="showStage(3)">
+            Next: Classification →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ STAGE 4 ════════════ -->
+  <div class="stage-panel" id="sp4cls">
+    <div class="stage-header">
+      <span class="stage-badge">STAGE 04 / 04</span>
+      <span class="stage-title">Vehicle Classification &amp; Performance Evaluation</span>
+    </div>
+    <div class="grid2">
+
+      <!-- Left -->
+      <div>
+        <div class="pcard pcard-solid-violet" style="margin-bottom:16px">
+          <div class="section-label">CLASSIFIER CONFIGURATION</div>
+          <div class="ctrl-row">
+            <span class="ctrl-label">MODEL ARCHITECTURE</span>
+            <select id="modelSel">
+              <option>CNN (5-layer ConvNet)</option>
+              <option>LSTM (Bidirectional)</option>
+              <option>CNN + LSTM Hybrid</option>
+              <option>Transformer (ViT-Tiny)</option>
+            </select>
+          </div>
+          <div class="check-row">
+            <input type="checkbox" id="useCuration" checked>
+            <label for="useCuration">Use GA-curated dataset (run Stage 3 first for best results)</label>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap">
+            <button class="run-btn btn-violet" id="clsRunBtn" onclick="runClassifier()">
+              <span class="btn-icon">▶</span> Run Classifier
+            </button>
+            <button class="run-btn btn-outline" onclick="resetClassifier()">Reset</button>
+            <div class="chip chip-idle" id="clsStatusChip">
+              <span class="chip-dot"></span><span id="clsStatusTxt">IDLE</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid3" style="margin-bottom:16px">
+          <div class="metric">
+            <div class="metric-label">OVERALL ACCURACY</div>
+            <div class="metric-val" id="overallAcc">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">MACRO F1</div>
+            <div class="metric-val amber" id="macroF1">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">FALSE ALARM RATE</div>
+            <div class="metric-val rose" id="farVal">—</div>
+          </div>
+        </div>
+
+        <div class="pcard">
+          <div class="section-label">PER-CLASS F1 SCORES</div>
+          <div id="f1Bars">
+            <p style="font-size:12px;color:var(--ink-dim)">Run classifier to see per-class results.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right -->
+      <div class="pcard">
+        <div class="corner-tl"></div><div class="corner-br"></div>
+        <div class="section-label">CONFUSION MATRIX · 8 VEHICLE CLASSES</div>
+        <div class="conf-wrap" id="confMatrix">
+          <p style="font-size:12px;color:var(--ink-dim);padding:20px 0">Run classifier to generate confusion matrix.</p>
+        </div>
+        <div class="note" style="margin-top:14px">
+          Diagonal = correct predictions (violet) &nbsp;·&nbsp; Off-diagonal = confusions (rose) &nbsp;·&nbsp; Darker = higher count
+        </div>
+        <div class="pcard" style="margin-top:16px;background:var(--bg)">
+          <div class="section-label">EXPERIMENT COMPARISON</div>
+          <div id="compTable">
+            <p style="font-size:12px;color:var(--ink-dim)">Run classifier to compare conditions.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+/* ══════════════════════════════════
+   CONSTANTS
+══════════════════════════════════ */
+const CLASSES   = ['2S1','BMP2','BRDM2','BTR60','BTR70','T62','T72','ZIL131'];
+const SHORT     = ['2S1','BMP2','BR2','B60','B70','T62','T72','ZIL'];
+const RAW_COUNTS = [1164,1415,1415,451,469,572,573,573];
+
+let gaRan  = false;
+let clsRan = false;
+let curatedCounts = [...RAW_COUNTS];
+let gaRunning = false;
+let clsRunning = false;
+
+function rng(seed){
+  let s = seed >>> 0;
+  return ()=>{ s=Math.imul(s^(s>>>17),0xbf324c81)>>>0; return s/4294967296; };
+}
+
+/* ══════════════════════════════════
+   EPOCH TICKER
+══════════════════════════════════ */
+let epochN = 41;
+setInterval(()=>{
+  epochN++;
+  const el = document.getElementById('epochCounter');
+  if(el) el.textContent = String(epochN).padStart(5,'0');
+}, 1400);
+
+/* bit stream flicker */
+setInterval(()=>{
+  const el = document.getElementById('dataStream1');
+  if(!el) return;
+  el.innerHTML = [0,1,2].map(()=>
+    Array.from({length:8},()=>Math.random()>.5?'1':'0').join('')
+  ).join('<br>');
+}, 700);
+
+/* ══════════════════════════════════
+   STAGE NAV
+══════════════════════════════════ */
+const STAGE_IDS = ['sp0','sp1','sp3ga','sp4cls'];
+
+function showStage(i){
+  STAGE_IDS.forEach((id,j)=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('visible', i===j);
+  });
+  document.querySelectorAll('.snav-btn').forEach((b,j)=>b.classList.toggle('active',i===j));
+  // update pipeline bar
+  for(let n=0;n<5;n++){
+    const pn = document.getElementById('pn'+n);
+    if(!pn) continue;
+    pn.classList.remove('active','done');
+    if(n===i) pn.classList.add('active');
+    else if(n<i) pn.classList.add('done');
+  }
+  if(i===0) drawRawChip();
+  if(i===1) drawAspect();
+  if(i===2) drawClassBars();
+}
+
+/* ══════════════════════════════════
+   UPLOAD — chip state
+══════════════════════════════════ */
+let activeChipPixels = null;   // Uint8ClampedArray RGBA of raw normalised chip
+let activeChipW = 0, activeChipH = 0;
+
+function initUploadUI(){
+  fetch('/api/chips')
+    .then(r => r.json())
+    .then(chips => {
+      const sel = document.getElementById('archiveSelect');
+      // Group by class
+      const groups = {};
+      chips.forEach(c => {
+        (groups[c.class] = groups[c.class] || []).push(c);
+      });
+      Object.keys(groups).sort().forEach(cls => {
+        const og = document.createElement('optgroup');
+        og.label = cls;
+        groups[cls].forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.path;
+          opt.textContent = c.name;
+          og.appendChild(opt);
+        });
+        sel.appendChild(og);
+      });
+    })
+    .catch(() => {}); // backend not running — silent
+}
+
+function loadFromArchive(){
+  const path = document.getElementById('archiveSelect').value;
+  if(!path) return;
+  _sendChipRequest(null, path);
+}
+
+function loadFromFile(){
+  const file = document.getElementById('chipFileInput').files[0];
+  if(!file) return;
+  _sendChipRequest(file, null);
+}
+
+function _sendChipRequest(file, path){
+  const status = document.getElementById('chipStatus');
+  status.className = 'chip-status';
+  status.innerHTML = '<span class="chip-status-dot"></span>&nbsp;LOADING…';
+
+  const fd = new FormData();
+  if(file) fd.append('file', file);
+  else     fd.append('path', path);
+
+  fetch('/api/process-raw', {method:'POST', body:fd})
+    .then(r => r.json())
+    .then(data => {
+      if(data.error){
+        status.innerHTML = '<span class="chip-status-dot"></span>&nbsp;ERR: '+data.error;
+        return;
+      }
+      // Decode base64 PNG → RGBA pixel array via a hidden Image + canvas
+      const img = new Image();
+      img.onload = () => {
+        const tmp = document.createElement('canvas');
+        tmp.width = img.width; tmp.height = img.height;
+        const tc = tmp.getContext('2d');
+        tc.drawImage(img, 0, 0);
+        const idata = tc.getImageData(0, 0, img.width, img.height);
+        activeChipPixels = new Uint8ClampedArray(idata.data);
+        activeChipW = img.width;
+        activeChipH = img.height;
+        // Update labels
+        const cls = data.target_class || '';
+        document.getElementById('rawChipLabel').textContent =
+          'RAW INPUT · '+img.width+'×'+img.height;
+        document.getElementById('cleanChipLabel').textContent =
+          'AFTER MTI FILTER' + (cls && cls!=='UNKNOWN' ? ' · '+cls : '');
+        status.className = 'chip-status loaded';
+        status.innerHTML = '<span class="chip-status-dot"></span>&nbsp;'
+          +(cls && cls!=='UNKNOWN' ? cls+' ' : '')+img.width+'×'+img.height;
+        updateStage1();
+      };
+      img.src = 'data:image/png;base64,' + data.raw_b64;
+    })
+    .catch(() => {
+      status.innerHTML = '<span class="chip-status-dot"></span>&nbsp;BACKEND OFFLINE';
+      activeChipPixels = null;
+    });
+}
+
+function drawRealChip(canvasId, isClean, spThresh, mtiCut){
+  const cv = document.getElementById(canvasId);
+  if(!cv || !activeChipPixels) return;
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const sw = activeChipW, sh = activeChipH;
+
+  // Build a processed copy of the raw RGBA pixels
+  const copy = new Uint8ClampedArray(activeChipPixels);
+  if(isClean){
+    const threshV  = spThresh * 0.45;          // 0-255 pixel threshold
+    const mtiAtten = mtiCut / 60.0 * 0.55;    // how much to attenuate clutter
+    const cx = sw / 2, cy = sh / 2;
+    const rTarget = Math.min(sw, sh) * 0.22;  // target preserve radius
+    for(let i = 0; i < copy.length; i += 4){
+      const px = (i/4) % sw;
+      const py = Math.floor((i/4) / sw);
+      const dist = Math.sqrt((px-cx)*(px-cx)+(py-cy)*(py-cy));
+      let v = copy[i]; // grayscale (R=G=B for our PNG)
+      if(dist > rTarget) v *= (1 - mtiAtten);
+      if(v < threshV)    v = 0;
+      v = Math.min(255, Math.round(v));
+      copy[i] = copy[i+1] = copy[i+2] = v;
+    }
+  }
+
+  // Draw chip scaled to canvas via a temporary canvas
+  const tmp = document.createElement('canvas');
+  tmp.width = sw; tmp.height = sh;
+  tmp.getContext('2d').putImageData(new ImageData(copy, sw, sh), 0, 0);
+  ctx.drawImage(tmp, 0, 0, W, H);
+
+  // ── overlays (same as synthetic) ──────────────────────────────────────────
+  // Violet ring — target scattering centre
+  ctx.strokeStyle='rgba(91,61,232,0.85)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(W*0.5, H*0.5, W*0.14, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='rgba(91,61,232,0.15)'; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.arc(W*0.5, H*0.5, W*0.16, 0, Math.PI*2); ctx.stroke();
+  if(isClean){
+    // Dashed amber box — preserved signature region
+    ctx.strokeStyle='rgba(217,119,6,0.7)'; ctx.lineWidth=1;
+    ctx.setLineDash([4,4]);
+    ctx.strokeRect(W*0.28, H*0.28, W*0.44, H*0.44);
+    ctx.setLineDash([]);
+    // Teal crosshair
+    ctx.strokeStyle='rgba(13,122,107,0.35)'; ctx.lineWidth=0.6;
+    ctx.setLineDash([3,9]);
+    ctx.beginPath(); ctx.moveTo(W*0.5,H*0.06); ctx.lineTo(W*0.5,H*0.94); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W*0.06,H*0.5); ctx.lineTo(W*0.94,H*0.5); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+/* ══════════════════════════════════
+   STAGE 1 — SAR CHIP
+══════════════════════════════════ */
+function drawSARChip(canvasId, spThresh, isClean){
+  const cv = document.getElementById(canvasId);
+  if(!cv) return;
+  const ctx = cv.getContext('2d');
+  const W=cv.width, H=cv.height, SZ=64;
+  const r=rng(42);
+  ctx.fillStyle='#f8f5f0'; ctx.fillRect(0,0,W,H);
+  const img=ctx.createImageData(W,H);
+  const scX=W/SZ, scY=H/SZ;
+  const cx=SZ*0.48, cy=SZ*0.52;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      const sx=x/scX, sy=y/scY;
+      const dx=sx-cx, dy=sy-cy;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      let v=0;
+      v+=r()*60-30;
+      if(dist<9) v+=210-dist*20+r()*25;
+      const clutter=Math.sin(sx*0.7+r()*2)*18+Math.cos(sy*0.6)*14+r()*22;
+      v+=clutter*(isClean?Math.max(0,(dist-10)/9):1);
+      if(isClean&&v<spThresh) v=0;
+      v=Math.max(0,Math.min(255,v+35));
+      const idx=(y*W+x)*4;
+      const shade=255-v;
+      if(isClean&&dist<11){
+        img.data[idx]  =Math.min(255,shade+v*0.1);
+        img.data[idx+1]=Math.min(255,shade+v*0.05);
+        img.data[idx+2]=Math.min(255,shade-v*0.1);
+      } else {
+        img.data[idx]=shade; img.data[idx+1]=shade; img.data[idx+2]=shade;
+      }
+      img.data[idx+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  // target ring — violet
+  ctx.strokeStyle='rgba(91,61,232,0.85)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(W*0.48,H*0.52,W*0.14,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='rgba(91,61,232,0.15)'; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.arc(W*0.48,H*0.52,W*0.16,0,Math.PI*2); ctx.stroke();
+  if(isClean){
+    ctx.strokeStyle='rgba(217,119,6,0.7)'; ctx.lineWidth=1;
+    ctx.setLineDash([4,4]);
+    ctx.strokeRect(W*0.3,H*0.34,W*0.38,W*0.38);
+    ctx.setLineDash([]);
+    // crosshair
+    ctx.strokeStyle='rgba(13,122,107,0.35)'; ctx.lineWidth=0.6;
+    ctx.setLineDash([3,9]);
+    ctx.beginPath(); ctx.moveTo(W*0.48,H*0.08); ctx.lineTo(W*0.48,H*0.92); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W*0.08,H*0.52); ctx.lineTo(W*0.92,H*0.52); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function updateStage1(){
+  const s=+document.getElementById('sThresh').value;
+  const m=+document.getElementById('mtiCut').value;
+  const w=+document.getElementById('winSize').value;
+  document.getElementById('sThreshVal').textContent=s;
+  document.getElementById('mtiCutVal').textContent=m;
+  document.getElementById('winSizeVal').textContent=w;
+  const tcr=(8+s*0.18+m*0.06).toFixed(1);
+  const supp=Math.min(95,45+s*0.55+w*1.2).toFixed(0);
+  const targ=Math.max(60,98-s*0.12-m*0.08).toFixed(0);
+  document.getElementById('tcrVal').textContent=tcr+' dB';
+  document.getElementById('suppVal').textContent=supp+'%';
+  document.getElementById('targVal').textContent=targ+'%';
+  if(activeChipPixels){
+    drawRealChip('rawChip',   false, s, m);
+    drawRealChip('cleanChip', true,  s, m);
+  } else {
+    drawSARChip('rawChip',s,false);
+    drawSARChip('cleanChip',s,true);
+  }
+}
+function drawRawChip(){ updateStage1(); }
+
+function randomizeFilterParams(){
+  document.getElementById('sThresh').value = Math.round(10+Math.random()*70);
+  document.getElementById('mtiCut').value  = Math.round(5+Math.random()*55);
+  document.getElementById('winSize').value = Math.round(3+Math.random()*12);
+  updateStage1();
+}
+function resetFilterParams(){
+  document.getElementById('sThresh').value=35;
+  document.getElementById('mtiCut').value=22;
+  document.getElementById('winSize').value=7;
+  updateStage1();
+}
+
+/* ══════════════════════════════════
+   STAGE 2 — ASPECT + DOPPLER
+══════════════════════════════════ */
+function drawAspect(){
+  const dep  =+document.getElementById('depAngle').value;
+  const bins =+document.getElementById('fftBins').value;
+  const rate =+document.getElementById('aspectRate').value;
+  document.getElementById('depAngleVal').textContent=dep+'°';
+  document.getElementById('fftBinsVal').textContent=bins;
+  document.getElementById('aspectRateVal').textContent=rate+'°/step';
+
+  const views=Math.round(360/rate);
+  const peak=(45+dep*1.1+17)%180;
+  document.getElementById('angCov').textContent=views;
+  document.getElementById('featDim').textContent=bins*2;
+  document.getElementById('peakAngle').textContent=Math.round(peak)+'°';
+
+  /* polar canvas */
+  const ac=document.getElementById('aspectCanvas');
+  if(!ac) return;
+  const ctx=ac.getContext('2d');
+  const W=ac.width, H=ac.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#f8f5f0'; ctx.fillRect(0,0,W,H);
+
+  const cx2=W/2, cy2=H/2, maxR=Math.min(W,H)*0.42;
+  const r=rng(dep*7+rate*3);
+
+  /* grid circles */
+  [0.33,0.66,1.0].forEach(frac=>{
+    ctx.beginPath(); ctx.arc(cx2,cy2,maxR*frac,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(184,176,168,${frac*0.6+0.2})`; ctx.lineWidth=0.5; ctx.stroke();
+  });
+  /* radial lines */
+  for(let a=0;a<360;a+=30){
+    const rad=a*Math.PI/180;
+    ctx.beginPath(); ctx.moveTo(cx2,cy2);
+    ctx.lineTo(cx2+maxR*Math.cos(rad),cy2+maxR*Math.sin(rad));
+    ctx.strokeStyle='rgba(184,176,168,0.4)'; ctx.lineWidth=0.5; ctx.stroke();
+  }
+
+  /* fill */
+  ctx.beginPath(); let first=true;
+  for(let i=0;i<=360;i+=rate){
+    const rad=i*Math.PI/180;
+    const base=maxR*(0.4+0.15*Math.sin(rad*2)+0.1*Math.cos(rad*3)+r()*0.12);
+    const boost=(i>peak-25&&i<peak+25)?maxR*0.25:0;
+    const rv=base+boost;
+    const px=cx2+rv*Math.cos(rad), py=cy2+rv*Math.sin(rad);
+    if(first){ctx.moveTo(px,py);first=false;}else ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+  ctx.fillStyle='rgba(91,61,232,0.08)'; ctx.fill();
+  ctx.strokeStyle='#5b3de8'; ctx.lineWidth=1.5; ctx.stroke();
+
+  /* secondary trace — teal */
+  ctx.beginPath(); first=true;
+  for(let i=0;i<=360;i+=rate){
+    const rad=i*Math.PI/180;
+    const base=maxR*(0.22+0.07*Math.sin(rad*3+1)+r()*0.05);
+    const px=cx2+base*Math.cos(rad), py=cy2+base*Math.sin(rad);
+    if(first){ctx.moveTo(px,py);first=false;}else ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+  ctx.strokeStyle='rgba(13,122,107,0.5)'; ctx.lineWidth=0.8; ctx.stroke();
+  ctx.fillStyle='rgba(13,122,107,0.04)'; ctx.fill();
+
+  /* peak marker */
+  const pkRad=peak*Math.PI/180;
+  const pkR=maxR*0.78;
+  ctx.beginPath(); ctx.arc(cx2+pkR*Math.cos(pkRad),cy2+pkR*Math.sin(pkRad),6,0,Math.PI*2);
+  ctx.fillStyle='#d97706'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx2+pkR*Math.cos(pkRad),cy2+pkR*Math.sin(pkRad),10,0,Math.PI*2);
+  ctx.fillStyle='rgba(217,119,6,0.15)'; ctx.fill();
+
+  /* centre dot */
+  ctx.beginPath(); ctx.arc(cx2,cy2,4,0,Math.PI*2);
+  ctx.fillStyle='#f8f5f0'; ctx.fill();
+  ctx.strokeStyle='rgba(91,61,232,0.5)'; ctx.lineWidth=1; ctx.stroke();
+
+  /* labels */
+  ctx.font='10px Space Mono'; ctx.fillStyle='rgba(90,85,80,0.7)'; ctx.textAlign='center';
+  ['0°','90°','180°','270°'].forEach((lbl,i)=>{
+    const rad=i*Math.PI/2;
+    const lx=cx2+(maxR+18)*Math.cos(rad), ly=cy2+(maxR+18)*Math.sin(rad);
+    ctx.fillText(lbl,lx,ly+4);
+  });
+
+  /* doppler canvas */
+  const dc=document.getElementById('dopplerCanvas');
+  if(!dc) return;
+  const dctx=dc.getContext('2d');
+  const DW=dc.width, DH=dc.height;
+  dctx.clearRect(0,0,DW,DH);
+  const imgD=dctx.createImageData(DW,DH);
+  const r2=rng(bins*5+dep*3);
+  for(let y=0;y<DH;y++){
+    for(let x=0;x<DW;x++){
+      const fx=(x-DW/2)/(DW/2), fy=(y-DH/2)/(DH/2);
+      let v=r2()*15;
+      v+=220*Math.exp(-(fx*fx+fy*fy)*12);
+      v+=100*Math.exp(-((fx-0.3)*(fx-0.3)+(fy+0.25)*(fy+0.25))*18);
+      v+=70*Math.exp(-((fx+0.22)*(fx+0.22)+(fy-0.28)*(fy-0.28))*22);
+      v=Math.min(255,v);
+      const idx=(y*DW+x)*4;
+      const bg=248;
+      imgD.data[idx]  =bg-v*0.4;
+      imgD.data[idx+1]=bg-v*0.6;
+      imgD.data[idx+2]=bg-v*0.1;
+      imgD.data[idx+3]=255;
+    }
+  }
+  dctx.putImageData(imgD,0,0);
+  dctx.font='9px Space Mono'; dctx.fillStyle='rgba(90,85,80,0.6)';
+  dctx.textAlign='center'; dctx.fillText('← range →',DW/2,DH-5);
+  dctx.save(); dctx.translate(12,DH/2+28); dctx.rotate(-Math.PI/2);
+  dctx.fillText('← velocity →',0,0); dctx.restore();
+}
+function updateStage2(){ drawAspect(); }
+function rerunAspect(){ drawAspect(); }
+function resetFeatureParams(){
+  document.getElementById('depAngle').value=17;
+  document.getElementById('fftBins').value=128;
+  document.getElementById('aspectRate').value=5;
+  drawAspect();
+}
+
+/* ══════════════════════════════════
+   STAGE 3 — GA
+══════════════════════════════════ */
+function drawClassBars(){
+  const maxC=Math.max(...RAW_COUNTS);
+  document.getElementById('classBars').innerHTML=RAW_COUNTS.map((c,i)=>`
+    <div class="bar-row">
+      <span class="bar-label">${SHORT[i]}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(c/maxC*100).toFixed(1)}%;background:#5b3de8"></div></div>
+      <span class="bar-count">${c.toLocaleString()}</span>
+    </div>`).join('');
+  drawCuratedBars();
+}
+
+function drawCuratedBars(){
+  const maxC=Math.max(...curatedCounts);
+  document.getElementById('classBarsAfter').innerHTML=curatedCounts.map((c,i)=>`
+    <div class="bar-row">
+      <span class="bar-label">${SHORT[i]}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(c/maxC*100).toFixed(1)}%;background:${gaRan?'#0d7a6b':'#bfb8ac'}"></div></div>
+      <span class="bar-count">${c.toLocaleString()}${gaRan&&c>RAW_COUNTS[i]?` <span style="color:#5b3de8;font-size:10px;font-weight:700">+${(c-RAW_COUNTS[i]).toLocaleString()}</span>`:''}</span>
+    </div>`).join('');
+}
+
+let gaInterval = null;
+function runGA(){
+  if(gaRunning) return;
+  gaRunning = true;
+  const btn = document.getElementById('gaRunBtn');
+  btn.disabled = true;
+  const gens=+document.getElementById('gaGen').value;
+  const mut =+document.getElementById('mutRate').value;
+  const aug =+document.getElementById('augStr').value;
+  const chip=document.getElementById('gaStatusChip');
+  const txt =document.getElementById('gaStatusTxt');
+  chip.className='chip chip-run'; txt.textContent='RUNNING';
+  const log=document.getElementById('gaLog');
+  log.innerHTML='';
+  let fitness=0.38+Math.random()*0.08;
+  let lines=[];
+  let step=0;
+  const maxSteps=Math.min(gens,18);
+  gaInterval=setInterval(()=>{
+    fitness=Math.min(0.972,fitness+0.026+Math.random()*0.018);
+    const gen=Math.round((step+1)*(gens/maxSteps));
+    const ns=Math.round((gen/gens)*aug*11);
+    const elite=Math.round(3+step*0.4);
+    lines.unshift(`GEN ${String(gen).padStart(3,'0')}  fit=${fitness.toFixed(4)}  mut=${mut}%  elite=${elite}  new=+${ns}`);
+    if(lines.length>7) lines.pop();
+    log.innerHTML=lines.join('\n');
+    step++;
+    if(step>=maxSteps){
+      clearInterval(gaInterval);
+      curatedCounts=RAW_COUNTS.map(c=>
+        c<700?Math.round(c*(1+aug*0.016)):Math.round(c*(1+aug*0.003))
+      );
+      const added=curatedCounts.reduce((a,b)=>a+b,0)-RAW_COUNTS.reduce((a,b)=>a+b,0);
+      const mn=Math.min(...curatedCounts), mx=Math.max(...curatedCounts);
+      document.getElementById('sampAdded').textContent='+'+added.toLocaleString();
+      document.getElementById('balScore').textContent=(mn/mx).toFixed(3);
+      document.getElementById('bestFit').textContent=fitness.toFixed(4);
+      chip.className='chip chip-ok'; txt.textContent='CONVERGED';
+      gaRan=true; gaRunning=false;
+      btn.disabled=false;
+      drawCuratedBars();
+      document.getElementById('curationNote').style.display='block';
+    }
+  },130);
+}
+
+function resetGA(){
+  if(gaInterval) clearInterval(gaInterval);
+  gaRunning=false; gaRan=false;
+  curatedCounts=[...RAW_COUNTS];
+  document.getElementById('gaStatusChip').className='chip chip-idle';
+  document.getElementById('gaStatusTxt').textContent='IDLE';
+  document.getElementById('gaLog').innerHTML='— press RUN GA CURATION to evolve chromosome population —';
+  document.getElementById('sampAdded').textContent='—';
+  document.getElementById('balScore').textContent='—';
+  document.getElementById('bestFit').textContent='—';
+  document.getElementById('gaRunBtn').disabled=false;
+  document.getElementById('curationNote').style.display='none';
+  drawCuratedBars();
+}
+
+/* ══════════════════════════════════
+   STAGE 4 — CLASSIFIER
+══════════════════════════════════ */
+function runClassifier(){
+  if(clsRunning) return;
+  clsRunning=true;
+  const btn=document.getElementById('clsRunBtn');
+  btn.disabled=true;
+  const chip=document.getElementById('clsStatusChip');
+  const txt =document.getElementById('clsStatusTxt');
+  chip.className='chip chip-run'; txt.textContent='CLASSIFYING';
+  const useCur=document.getElementById('useCuration').checked&&gaRan;
+  const model =document.getElementById('modelSel').value;
+  setTimeout(()=>{
+    const r=rng(model.length*11+(useCur?77:0)+(Date.now()%997));
+    const base=useCur?0.875:0.775;
+    const acc=Math.min(0.99,base+r()*0.06);
+    const f1 =Math.min(0.99,base-0.03+r()*0.05);
+    const far=useCur?(1.8+r()*1.4):(4.6+r()*2.2);
+
+    animCount('overallAcc', (acc*100).toFixed(1)+'%');
+    animCount('macroF1', f1.toFixed(3));
+    animCount('farVal', far.toFixed(1)+'%');
+
+    const f1s=CLASSES.map((_,i)=>{
+      const minority=RAW_COUNTS[i]<600;
+      const boost=useCur&&minority?0.11:0;
+      return Math.min(0.99,0.70+r()*0.24+boost);
+    });
+
+    document.getElementById('f1Bars').innerHTML=f1s.map((f,i)=>{
+      const col=f>0.88?'#0d7a6b':f>0.72?'#d97706':'#e03d5a';
+      return `<div class="bar-row">
+        <span class="bar-label">${SHORT[i]}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${(f*100).toFixed(0)}%;background:${col}"></div></div>
+        <span class="bar-count" style="color:${col};font-weight:700">${(f*100).toFixed(0)}%</span>
+      </div>`;
+    }).join('');
+
+    /* confusion matrix */
+    const mat=[];
+    for(let i=0;i<8;i++){
+      const row=[];
+      for(let j=0;j<8;j++){
+        if(i===j) row.push(Math.round(f1s[i]*100+r()*4));
+        else row.push(Math.round(r()*12*(useCur?0.65:1)));
+      }
+      mat.push(row);
+    }
+    const maxV=Math.max(...mat.flat());
+    const hdr=`<div class="conf-cell conf-header"></div>`+
+      SHORT.map(s=>`<div class="conf-cell conf-header">${s}</div>`).join('');
+    const rows=mat.map((row,i)=>{
+      const cells=row.map((v,j)=>{
+        const alpha=v/maxV;
+        const bg=i===j
+          ?`rgba(91,61,232,${(alpha*0.85+0.1).toFixed(2)})`
+          :`rgba(224,61,90,${Math.min(alpha*3,0.75).toFixed(2)})`;
+        const clr=alpha>0.35?(i===j?'#fff':'#fff'):'var(--ink-mid)';
+        return `<div class="conf-cell" style="background:${bg};color:${clr}">${v}</div>`;
+      }).join('');
+      return `<div class="conf-cell conf-header">${SHORT[i]}</div>${cells}`;
+    }).join('');
+    document.getElementById('confMatrix').innerHTML=
+      `<div class="conf-grid" style="grid-template-columns:repeat(9,1fr)">${hdr}${rows}</div>`;
+
+    /* comparison table */
+    const baseAcc=(0.775+r()*0.03)*100;
+    const gaAcc  =(0.835+r()*0.03)*100;
+    const fullAcc=acc*100;
+    document.getElementById('compTable').innerHTML=`
+      <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px">
+        <thead>
+          <tr style="border-bottom:1.5px solid var(--border)">
+            <th style="text-align:left;padding:6px 8px;color:var(--ink-dim);font-weight:400">Condition</th>
+            <th style="text-align:right;padding:6px 8px;color:var(--ink-dim);font-weight:400">Accuracy</th>
+            <th style="text-align:right;padding:6px 8px;color:var(--ink-dim);font-weight:400">Macro F1</th>
+            <th style="text-align:right;padding:6px 8px;color:var(--ink-dim);font-weight:400">FAR</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:7px 8px;color:var(--ink-dim)">Baseline (fixed params)</td>
+            <td style="text-align:right;padding:7px 8px">${baseAcc.toFixed(1)}%</td>
+            <td style="text-align:right;padding:7px 8px">${(baseAcc/100-0.04).toFixed(3)}</td>
+            <td style="text-align:right;padding:7px 8px;color:var(--rose)">6.2%</td>
+          </tr>
+          <tr>
+            <td style="padding:7px 8px;color:var(--ink-dim)">GA params only</td>
+            <td style="text-align:right;padding:7px 8px">${gaAcc.toFixed(1)}%</td>
+            <td style="text-align:right;padding:7px 8px">${(gaAcc/100-0.03).toFixed(3)}</td>
+            <td style="text-align:right;padding:7px 8px;color:var(--amber)">3.9%</td>
+          </tr>
+          <tr class="comp-best">
+            <td style="padding:7px 8px;color:var(--teal);font-weight:600">GA params + curation ✓</td>
+            <td style="text-align:right;padding:7px 8px;color:var(--teal);font-weight:700">${fullAcc.toFixed(1)}%</td>
+            <td style="text-align:right;padding:7px 8px;color:var(--teal);font-weight:700">${f1.toFixed(3)}</td>
+            <td style="text-align:right;padding:7px 8px;color:var(--teal)">${far.toFixed(1)}%</td>
+          </tr>
+        </tbody>
+      </table>`;
+
+    chip.className='chip chip-ok'; txt.textContent='DONE';
+    clsRan=true; clsRunning=false;
+    btn.disabled=false;
+  },1600);
+}
+
+function resetClassifier(){
+  clsRan=false; clsRunning=false;
+  document.getElementById('clsStatusChip').className='chip chip-idle';
+  document.getElementById('clsStatusTxt').textContent='IDLE';
+  document.getElementById('clsRunBtn').disabled=false;
+  document.getElementById('overallAcc').textContent='—';
+  document.getElementById('macroF1').textContent='—';
+  document.getElementById('farVal').textContent='—';
+  document.getElementById('f1Bars').innerHTML='<p style="font-size:12px;color:var(--ink-dim)">Run classifier to see per-class results.</p>';
+  document.getElementById('confMatrix').innerHTML='<p style="font-size:12px;color:var(--ink-dim);padding:20px 0">Run classifier to generate confusion matrix.</p>';
+  document.getElementById('compTable').innerHTML='<p style="font-size:12px;color:var(--ink-dim)">Run classifier to compare conditions.</p>';
+}
+
+/* smooth value animation */
+function animCount(id, finalVal){
+  document.getElementById(id).textContent = finalVal;
+}
+
+/* ══════════════════════════════════
+   INIT
+══════════════════════════════════ */
+window.addEventListener('load',()=>{
+  drawRawChip();
+  drawClassBars();
+  initUploadUI();
+});
+</script>
+</body>
+</html>
